@@ -1,0 +1,40 @@
+# Dependencies
+app/node_modules/
+
+# Build outputs
+app/dist/
+app/dist-electron/
+out/
+
+# Logs
+*.log
+build.log
+build2.log
+build3.log
+build4.log
+build5.log
+build6.log
+
+# Environment files
+.env
+.env.*
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# WorkBuddy (personal workspace metadata)
+.workbuddy/

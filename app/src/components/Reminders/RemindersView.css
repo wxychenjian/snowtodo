@@ -1,0 +1,108 @@
+.reminders-view {
+  max-width: 600px;
+}
+
+.reminders-section {
+  margin-bottom: var(--space-8);
+}
+
+.reminders-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--space-4);
+}
+
+.reminders-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.reminder-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.reminder-card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.reminder-card.missed {
+  border-left: 3px solid var(--color-danger);
+}
+
+.reminder-card.pending {
+  border-left: 3px solid var(--color-accent);
+}
+
+.reminder-card-content {
+  flex: 1;
+}
+
+.reminder-card-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
+}
+
+.reminder-card-time {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.reminder-card-countdown {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-accent-light);
+  border-radius: var(--radius-full);
+}
+
+.reminder-card.missed .reminder-card-countdown {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+.reminders-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - var(--toolbar-height) - var(--space-16));
+  text-align: center;
+}
+
+.reminders-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--space-5);
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+.reminders-empty-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+
+.reminders-empty-text {
+  font-size: var(--font-size-md);
+  color: var(--color-text-muted);
+  max-width: 300px;
+}
