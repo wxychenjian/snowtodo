@@ -70,13 +70,19 @@ export function DetailPanel() {
       })
       setCustomDays(existingTodo.customDays || [])
     } else {
+      // 查找默认分类"工作"
+      const defaultCat = categories.find((c) => c.name === '工作')
+      const today = new Date().toISOString().slice(0, 10)
       setDraft({
         ...EMPTY_DRAFT,
+        dueDate: today,
+        dueTime: '17:30',
+        categoryId: defaultCat?.id ?? null,
         reminderType: settings.defaultReminderType,
       })
       setCustomDays([])
     }
-  }, [existingTodo, settings.defaultReminderType])
+  }, [existingTodo, settings.defaultReminderType, categories])
 
   const handleSave = async () => {
     if (!draft.title.trim()) return

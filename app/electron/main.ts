@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, Notification, globalShortcut } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Notification, globalShortcut, Tray, Menu, nativeImage } from 'electron'
 import type { BootstrapData, HealthReminder, PomodoroSession, PomodoroSettings, RecurringTodoDraft, ReminderEvent, Settings, TimeBlock, TodoDraft, AISettings } from '../src/types'
 import { AppDatabase } from './db'
 
@@ -10,6 +10,7 @@ const isDev = Boolean(process.env.VITE_DEV_SERVER_URL)
 const database = new AppDatabase()
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
 let reminderTimer: NodeJS.Timeout | null = null
 let healthReminderTimer: NodeJS.Timeout | null = null
 let isPomodoroActive = false
@@ -23,6 +24,7 @@ async function createWindow() {
     frame: true,
     backgroundColor: '#faf9f7',
     title: 'SnowTodo',
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -30,11 +32,63 @@ async function createWindow() {
     },
   })
 
+  mainWindow.once('ready-to-show', () => {
+    mainWindow!.show()
+  })
+
+  // 点击关闭按钮 → 隐藏到托盘而不是退出
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault()
+      mainWindow!.hide()
+    }
+  })
+
   if (isDev && process.env.VITE_DEV_SERVER_URL) {
     await mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
     await mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
+}
+
+function createTray() {
+  const iconPath = isDev
+    ? path.join(__dirname, '../public/tray-icon.png')
+    : path.join(__dirname, '../dist/tray-icon.png')
+
+  const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+  tray = new Tray(icon)
+  tray.setToolTip('SnowTodo')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示主窗口',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show()
+          mainWindow.focus()
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        app.isQuitting = true
+        app.quit()
+      },
+    },
+  ])
+
+  tray.setContextMenu(contextMenu)
+
+  // 双击托盘图标显示主窗口
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
 }
 
 function applyLaunchOnStartup(settings: Settings) {
@@ -278,6 +332,7 @@ app.whenReady().then(async () => {
   applyLaunchOnStartup(database.getBootstrapData().settings)
   registerIpc()
   await createWindow()
+  createTray()
   startReminderLoop()
   startHealthReminderLoop()
   registerGlobalShortcut()
@@ -289,7 +344,17 @@ app.on('will-quit', () => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  // macOS 外用户关闭窗口不退出，等托盘退出
+  if (process.platform === 'darwin') {
     app.quit()
   }
 })
+
+// 声明 isQuitting 扩展属性
+declare global {
+  namespace Electron {
+    interface App {
+      isQuitting?: boolean
+    }
+  }
+}

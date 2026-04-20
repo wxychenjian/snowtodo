@@ -57,12 +57,17 @@
       "dist/**/*",
       "dist-electron/**/*",
       "node_modules/sql.js/dist/sql-wasm.wasm",
-      "package.json"
+      "package.json",
+      "public/tray-icon.png"
     ],
     "extraResources": [
       {
         "from": "node_modules/sql.js/dist/sql-wasm.wasm",
         "to": "sql-wasm.wasm"
+      },
+      {
+        "from": "public/tray-icon.png",
+        "to": "tray-icon.png"
       }
     ],
     "electronDist": "node_modules/electron/dist",

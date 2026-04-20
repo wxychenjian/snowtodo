@@ -1162,7 +1162,7 @@ export class AppDatabase {
         tagIds: rt.tagIds,
       }
 
-      this.createTodo(todoDraft)
+      this.saveTodo(todoDraft)
 
       // 更新 lastGeneratedAt
       this.db.run(
