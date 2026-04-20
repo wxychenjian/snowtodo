@@ -56,9 +56,9 @@
 
 ## 界面预览
 
-> ![image-20260420111642617](.\images\image1.png)
+> ![image-20260420111642617](images/image1.png)
 >
-> ![image-20260420111755789](.\images\image2.png)
+> ![image-20260420111755789](images/image2.png)
 
 ---
 
