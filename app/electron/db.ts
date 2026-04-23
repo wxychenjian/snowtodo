@@ -249,6 +249,36 @@ export class AppDatabase {
       console.error('[DB] Migration pomodoro settings error:', err)
     }
 
+    // Migration: Add todo_images and project_cells tables if not exist
+    try {
+      const imgResult = this.db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='todo_images'")
+      if (!imgResult.length || !imgResult[0].values.length) {
+        this.db.run(`CREATE TABLE IF NOT EXISTS todo_images (
+          id TEXT PRIMARY KEY, todo_id TEXT NOT NULL, data TEXT NOT NULL,
+          mime_type TEXT DEFAULT 'image/png', created_at TEXT NOT NULL,
+          FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE)`)
+        this.db.run(`CREATE INDEX IF NOT EXISTS idx_todo_images_todo ON todo_images(todo_id)`)
+      }
+      const cellResult = this.db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='project_cells'")
+      if (!cellResult.length || !cellResult[0].values.length) {
+        this.db.run(`CREATE TABLE IF NOT EXISTS project_cells (
+          id TEXT PRIMARY KEY, project_id TEXT NOT NULL, cell_date TEXT NOT NULL,
+          content TEXT DEFAULT '', images TEXT DEFAULT '[]', is_alert INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`)
+        this.db.run(`CREATE INDEX IF NOT EXISTS idx_project_cells_date ON project_cells(cell_date)`)
+        this.db.run(`CREATE INDEX IF NOT EXISTS idx_project_cells_project ON project_cells(project_id)`)
+      }
+      // Migration: add start_date column to todos if not exists
+      const todosCols = this.db.exec("PRAGMA table_info(todos)")
+      const colNames = (todosCols[0]?.values ?? []).map((r) => r[1] as string)
+      if (!colNames.includes('start_date')) {
+        this.db.run('ALTER TABLE todos ADD COLUMN start_date TEXT')
+        console.log('[DB] Migration: added start_date column to todos')
+      }
+    } catch (err) {
+      console.error('[DB] Migration todo_images/project_cells error:', err)
+    }
+
     // Insert theme ID setting if not present
     try {
       const ts = this.db.exec("SELECT value FROM settings WHERE key = 'currentThemeId'")
@@ -290,6 +320,7 @@ export class AppDatabase {
         category_id TEXT,
         due_date TEXT,
         due_time TEXT,
+        start_date TEXT,
         is_pinned INTEGER DEFAULT 0,
         repeat_rule TEXT DEFAULT 'none',
         custom_days TEXT DEFAULT '[]',
@@ -446,6 +477,30 @@ export class AppDatabase {
       CREATE INDEX IF NOT EXISTS idx_timeblock_start ON time_blocks(start_time);
       CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date);
       CREATE INDEX IF NOT EXISTS idx_health_enabled ON health_reminders(enabled);
+
+      CREATE TABLE IF NOT EXISTS todo_images (
+        id TEXT PRIMARY KEY,
+        todo_id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        mime_type TEXT DEFAULT 'image/png',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS project_cells (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        cell_date TEXT NOT NULL,
+        content TEXT DEFAULT '',
+        images TEXT DEFAULT '[]',
+        is_alert INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_todo_images_todo ON todo_images(todo_id);
+      CREATE INDEX IF NOT EXISTS idx_project_cells_date ON project_cells(cell_date);
+      CREATE INDEX IF NOT EXISTS idx_project_cells_project ON project_cells(project_id);
     `)
   }
 
@@ -584,8 +639,17 @@ export class AppDatabase {
       [row[0]]
     )
     const tagIds = tagRows[0]?.values?.map((r) => r[0] as string) ?? []
-    const customDaysStr = row[10] as string
-    const customDays = customDaysStr ? JSON.parse(customDaysStr) as number[] : []
+    // 列顺序: 0=id,1=title,2=notes,3=status,4=priority,5=category_id,
+    //         6=due_date,7=due_time,8=start_date,9=is_pinned,10=repeat_rule,
+    //         11=custom_days,12=reminder_enabled,13=reminder_type,14=remind_at,
+    //         15=completed_at,16=created_at,17=updated_at
+    const customDaysStr = row[11] as string
+    let customDays: number[] = []
+    try {
+      customDays = customDaysStr ? JSON.parse(customDaysStr) as number[] : []
+    } catch {
+      customDays = []
+    }
     return {
       id: row[0] as string,
       title: row[1] as string,
@@ -595,22 +659,23 @@ export class AppDatabase {
       categoryId: row[5] as string | null,
       dueDate: row[6] as string | null,
       dueTime: row[7] as string | null,
-      isPinned: Boolean(row[8]),
-      repeatRule: row[9] as Todo['repeatRule'],
+      startDate: row[8] as string | null,
+      isPinned: Boolean(row[9]),
+      repeatRule: row[10] as Todo['repeatRule'],
       customDays,
-      reminderEnabled: Boolean(row[11]),
-      reminderType: row[12] as Todo['reminderType'],
-      remindAt: row[13] as string | null,
-      completedAt: row[14] as string | null,
-      createdAt: row[15] as string,
-      updatedAt: row[16] as string,
+      reminderEnabled: Boolean(row[12]),
+      reminderType: row[13] as Todo['reminderType'],
+      remindAt: row[14] as string | null,
+      completedAt: row[15] as string | null,
+      createdAt: row[16] as string,
+      updatedAt: row[17] as string,
       tagIds,
     }
   }
 
   getBootstrapData(): BootstrapData {
     const todosResult = this.db.exec(
-      'SELECT id, title, notes, status, priority, category_id, due_date, due_time, is_pinned, repeat_rule, custom_days, reminder_enabled, reminder_type, remind_at, completed_at, created_at, updated_at FROM todos ORDER BY is_pinned DESC, created_at DESC'
+      'SELECT id, title, notes, status, priority, category_id, due_date, due_time, start_date, is_pinned, repeat_rule, custom_days, reminder_enabled, reminder_type, remind_at, completed_at, created_at, updated_at FROM todos ORDER BY is_pinned DESC, created_at DESC'
     )
     const todos: Todo[] = todosResult[0]?.values.map((row) =>
       this.rowToTodo(row)
@@ -662,7 +727,7 @@ export class AppDatabase {
       this.db.run(
         `UPDATE todos SET
           title = ?, notes = ?, priority = ?, category_id = ?,
-          due_date = ?, due_time = ?, is_pinned = ?, repeat_rule = ?,
+          due_date = ?, due_time = ?, start_date = ?, is_pinned = ?, repeat_rule = ?,
           custom_days = ?, reminder_enabled = ?, reminder_type = ?, remind_at = ?,
           updated_at = ?
         WHERE id = ?`,
@@ -673,6 +738,7 @@ export class AppDatabase {
           draft.categoryId,
           draft.dueDate,
           draft.dueTime,
+          draft.startDate ?? null,
           draft.isPinned ? 1 : 0,
           draft.repeatRule,
           customDaysJson,
@@ -687,10 +753,10 @@ export class AppDatabase {
       this.db.run(
         `INSERT INTO todos (
           id, title, notes, status, priority, category_id,
-          due_date, due_time, is_pinned, repeat_rule, custom_days,
+          due_date, due_time, start_date, is_pinned, repeat_rule, custom_days,
           reminder_enabled, reminder_type, remind_at,
           completed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+        ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
         [
           id,
           draft.title,
@@ -699,6 +765,7 @@ export class AppDatabase {
           draft.categoryId,
           draft.dueDate,
           draft.dueTime,
+          draft.startDate ?? null,
           draft.isPinned ? 1 : 0,
           draft.repeatRule,
           customDaysJson,
@@ -722,7 +789,7 @@ export class AppDatabase {
     this.save()
 
     const result = this.db.exec(
-      'SELECT * FROM todos WHERE id = ?',
+      'SELECT id, title, notes, status, priority, category_id, due_date, due_time, start_date, is_pinned, repeat_rule, custom_days, reminder_enabled, reminder_type, remind_at, completed_at, created_at, updated_at FROM todos WHERE id = ?',
       [id]
     )
     return this.rowToTodo(result[0].values[0])
@@ -745,7 +812,7 @@ export class AppDatabase {
 
     this.save()
 
-    const result = this.db.exec('SELECT * FROM todos WHERE id = ?', [todoId])
+    const result = this.db.exec('SELECT id, title, notes, status, priority, category_id, due_date, due_time, start_date, is_pinned, repeat_rule, custom_days, reminder_enabled, reminder_type, remind_at, completed_at, created_at, updated_at FROM todos WHERE id = ?', [todoId])
     return this.rowToTodo(result[0].values[0])
   }
 
@@ -761,7 +828,7 @@ export class AppDatabase {
     )
     this.save()
 
-    const result = this.db.exec('SELECT * FROM todos WHERE id = ?', [todoId])
+    const result = this.db.exec('SELECT id, title, notes, status, priority, category_id, due_date, due_time, start_date, is_pinned, repeat_rule, custom_days, reminder_enabled, reminder_type, remind_at, completed_at, created_at, updated_at FROM todos WHERE id = ?', [todoId])
     return this.rowToTodo(result[0].values[0])
   }
 
@@ -1162,9 +1229,13 @@ export class AppDatabase {
         tagIds: rt.tagIds,
       }
 
-      this.saveTodo(todoDraft)
+      try {
+        this.saveTodo(todoDraft)
+      } catch (err) {
+        console.error('[DB] Failed to save generated daily todo:', err)
+      }
 
-      // 更新 lastGeneratedAt
+      // 更新 lastGeneratedAt（即使 saveTodo 失败也更新，避免无限重复生成）
       this.db.run(
         'UPDATE recurring_todos SET last_generated_at = ? WHERE id = ?',
         [today, rt.id]
@@ -1664,6 +1735,90 @@ export class AppDatabase {
       'currentThemeId',
       JSON.stringify(themeId),
     ])
+    this.save()
+  }
+
+  // ========== Todo Images ==========
+
+  getTodoImages(todoId: string): { id: string; data: string; mimeType: string }[] {
+    const result = this.db.exec(
+      'SELECT id, data, mime_type FROM todo_images WHERE todo_id = ? ORDER BY created_at',
+      [todoId]
+    )
+    return (result[0]?.values ?? []).map((row) => ({
+      id: row[0] as string,
+      data: row[1] as string,
+      mimeType: row[2] as string,
+    }))
+  }
+
+  addTodoImage(todoId: string, data: string, mimeType: string): string {
+    const id = this.generateId()
+    const now = new Date().toISOString()
+    this.db.run(
+      'INSERT INTO todo_images (id, todo_id, data, mime_type, created_at) VALUES (?, ?, ?, ?, ?)',
+      [id, todoId, data, mimeType, now]
+    )
+    this.save()
+    return id
+  }
+
+  deleteTodoImage(imageId: string): void {
+    this.db.run('DELETE FROM todo_images WHERE id = ?', [imageId])
+    this.save()
+  }
+
+  // ========== Project Cells ==========
+
+  getProjectCellsByMonth(projectId: string, yearMonth: string): { id: string; cellDate: string; content: string; images: string[]; isAlert: boolean }[] {
+    // yearMonth: 'YYYY-MM'
+    const result = this.db.exec(
+      "SELECT id, cell_date, content, images, is_alert FROM project_cells WHERE project_id = ? AND cell_date LIKE ?",
+      [projectId, `${yearMonth}-%`]
+    )
+    if (!result[0]?.values?.length) return []
+    return result[0].values.map((row) => ({
+      id: row[0] as string,
+      cellDate: row[1] as string,
+      content: row[2] as string,
+      images: JSON.parse((row[3] as string) ?? '[]'),
+      isAlert: (row[4] as number) === 1,
+    }))
+  }
+
+  getProjectCell(projectId: string, cellDate: string): { id: string; content: string; images: string[]; isAlert: boolean } | null {
+    const result = this.db.exec(
+      'SELECT id, content, images, is_alert FROM project_cells WHERE project_id = ? AND cell_date = ?',
+      [projectId, cellDate]
+    )
+    if (!result[0]?.values?.length) return null
+    const row = result[0].values[0]
+    return {
+      id: row[0] as string,
+      content: row[1] as string,
+      images: JSON.parse((row[2] as string) ?? '[]'),
+      isAlert: (row[3] as number) === 1,
+    }
+  }
+
+  upsertProjectCell(projectId: string, cellDate: string, content: string, images: string[], isAlert: boolean): void {
+    const now = new Date().toISOString()
+    const existing = this.db.exec(
+      'SELECT id FROM project_cells WHERE project_id = ? AND cell_date = ?',
+      [projectId, cellDate]
+    )
+    if (existing[0]?.values?.length) {
+      this.db.run(
+        'UPDATE project_cells SET content = ?, images = ?, is_alert = ?, updated_at = ? WHERE project_id = ? AND cell_date = ?',
+        [content, JSON.stringify(images), isAlert ? 1 : 0, now, projectId, cellDate]
+      )
+    } else {
+      const id = this.generateId()
+      this.db.run(
+        'INSERT INTO project_cells (id, project_id, cell_date, content, images, is_alert, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, projectId, cellDate, content, JSON.stringify(images), isAlert ? 1 : 0, now, now]
+      )
+    }
     this.save()
   }
 }

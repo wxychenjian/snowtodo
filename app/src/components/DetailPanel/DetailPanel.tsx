@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { X, Trash2, Upload, Image } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import type { TodoDraft, Priority, RepeatRule, ReminderType } from '../../src/types'
 import './DetailPanel.css'
@@ -11,6 +11,7 @@ const EMPTY_DRAFT: TodoDraft = {
   categoryId: null,
   dueDate: null,
   dueTime: null,
+  startDate: null,
   isPinned: false,
   repeatRule: 'none',
   reminderEnabled: false,
@@ -50,6 +51,83 @@ export function DetailPanel() {
   const existingTodo = selectedTodoId ? todos.find((t) => t.id === selectedTodoId) : null
   const isEditing = Boolean(existingTodo)
 
+  // ── Images ─────────────────────────────────────────────
+  const [images, setImages] = useState<{ id: string; data: string; mimeType: string }[]>([])
+  const [dragOver, setDragOver] = useState(false)
+  const [imageLoading, setImageLoading] = useState(false)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 面板关闭时清空 Lightbox，防止残留在屏幕上
+  useEffect(() => {
+    if (!isDetailPanelOpen) {
+      setLightboxSrc(null)
+    }
+  }, [isDetailPanelOpen])
+
+  // Load images when editing
+  useEffect(() => {
+    if (existingTodo) {
+      window.todoApi.getTodoImages(existingTodo.id).then(setImages)
+    } else {
+      setImages([])
+    }
+  }, [existingTodo?.id])
+
+  const processImageFile = useCallback(async (file: File): Promise<{ data: string; mimeType: string } | null> => {
+    if (!file.type.startsWith('image/')) return null
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve({ data: reader.result as string, mimeType: file.type })
+      reader.readAsDataURL(file)
+    })
+  }, [])
+
+  const handleImagesAdd = useCallback(async (files: FileList | File[]) => {
+    const fileArray = Array.from(files)
+    setImageLoading(true)
+    const results = await Promise.all(fileArray.map(processImageFile))
+    const valid = results.filter(Boolean) as { data: string; mimeType: string }[]
+
+    if (!isEditing) {
+      // For new todos, store images locally temporarily
+      setImages((prev) => [...prev, ...valid])
+    } else if (existingTodo) {
+      // For existing todos, save to DB
+      const ids = await Promise.all(valid.map((v) => window.todoApi.addTodoImage(existingTodo.id, v.data, v.mimeType)))
+      setImages((prev) => [...prev, ...valid.map((v, i) => ({ id: ids[i]!, data: v.data, mimeType: v.mimeType }))])
+    }
+    setImageLoading(false)
+  }, [isEditing, existingTodo, processImageFile])
+
+  const handleImageDelete = useCallback(async (imageId: string) => {
+    setImages((prev) => prev.filter((img) => img.id !== imageId))
+    if (isEditing && imageId) {
+      await window.todoApi.deleteTodoImage(imageId)
+    }
+  }, [isEditing])
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOver(true) }
+  const handleDragLeave = () => setDragOver(false)
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    if (e.dataTransfer.files.length) handleImagesAdd(e.dataTransfer.files)
+  }
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items
+    const imageItems = Array.from(items).filter((item) => item.type.startsWith('image/'))
+    if (!imageItems.length) return
+    const files = imageItems.map((item) => item.getAsFile()!).filter(Boolean) as File[]
+    if (files.length) handleImagesAdd(files)
+  }, [handleImagesAdd])
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.length) handleImagesAdd(e.target.files)
+    e.target.value = ''
+  }
+
   useEffect(() => {
     if (existingTodo) {
       setDraft({
@@ -60,6 +138,7 @@ export function DetailPanel() {
         categoryId: existingTodo.categoryId,
         dueDate: existingTodo.dueDate,
         dueTime: existingTodo.dueTime,
+        startDate: existingTodo.startDate ?? null,
         isPinned: existingTodo.isPinned,
         repeatRule: existingTodo.repeatRule,
         customDays: existingTodo.customDays,
@@ -97,6 +176,10 @@ export function DetailPanel() {
       updateTodo(result)
     } else {
       addTodo(result)
+      // Save locally-stored images to DB
+      for (const img of images) {
+        await window.todoApi.addTodoImage(result.id, img.data, img.mimeType)
+      }
     }
     closeDetailPanel()
   }
@@ -169,8 +252,68 @@ export function DetailPanel() {
               placeholder="添加备注..."
               value={draft.notes}
               onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+              onPaste={handlePaste}
             />
           </div>
+
+          {/* 图片上传区域 */}
+          <div
+            className={`image-upload-zone ${dragOver ? 'drag-over' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {imageLoading ? (
+              <span className="image-upload-hint">上传中...</span>
+            ) : images.length === 0 ? (
+              <>
+                <Image size={24} className="image-upload-icon" />
+                <span className="image-upload-hint">点击上传 / 拖拽图片 / Ctrl+V 粘贴</span>
+              </>
+            ) : (
+              <span className="image-upload-hint">+ 添加更多图片</span>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleFileInput}
+            />
+          </div>
+
+          {/* 图片预览 */}
+          {images.length > 0 && (
+            <div className="image-preview-grid">
+              {images.map((img) => (
+                <div key={img.id} className="image-preview-item">
+                  <img
+                    src={img.data}
+                    alt="附件"
+                    onClick={(e) => { e.stopPropagation(); setLightboxSrc(img.data) }}
+                  />
+                  <button
+                    className="image-preview-delete"
+                    onClick={(e) => { e.stopPropagation(); handleImageDelete(img.id) }}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Lightbox 放大预览 */}
+          {lightboxSrc && (
+            <div className="image-lightbox" onClick={() => setLightboxSrc(null)}>
+              <button className="image-lightbox-close" onClick={() => setLightboxSrc(null)}>
+                <X size={20} />
+              </button>
+              <img src={lightboxSrc} alt="预览" onClick={(e) => e.stopPropagation()} />
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label">优先级</label>
@@ -193,6 +336,7 @@ export function DetailPanel() {
                 className="form-input"
                 value={draft.dueDate ?? ''}
                 onChange={(e) => setDraft((d) => ({ ...d, dueDate: e.target.value || null }))}
+                min=""
               />
             </div>
             <div className="form-group">
@@ -204,6 +348,20 @@ export function DetailPanel() {
                 onChange={(e) => setDraft((d) => ({ ...d, dueTime: e.target.value || null }))}
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">
+              开始日期
+              <span className="form-label-hint">（到此日期才出现在「今日待办」）</span>
+            </label>
+            <input
+              type="date"
+              className="form-input"
+              value={draft.startDate ?? ''}
+              onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value || null }))}
+              min=""
+            />
           </div>
 
           <div className="form-group">

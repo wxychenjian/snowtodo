@@ -16,9 +16,11 @@ import type {
   TimeBlock,
   Todo,
   TodoDraft,
+  ProjectCell,
   ViewId,
 } from '../types'
 import { DEFAULT_POMODORO_SETTINGS } from '../types'
+
 
 export type { PomodoroPhase }
 
@@ -72,6 +74,9 @@ interface AppState {
 
   // ── M4 Dashboard ───────────────────────────────
   dailyStats: DailyStats[]
+
+  // ── Projects ────────────────────────────────────
+  projectCells: Record<string, ProjectCell>  // key: `${projectId}_${date}`
 }
 
 interface AppActions {
@@ -163,6 +168,11 @@ interface AppActions {
   // ── M4 Dashboard ───────────────────────────────
   setDailyStats: (stats: DailyStats[]) => void
   loadDailyStats: (startDate: string, endDate: string) => Promise<void>
+
+  // ── Projects ────────────────────────────────────
+  loadProjectMonth: (projectId: string, yearMonth: string) => Promise<void>
+  loadProjectCell: (projectId: string, cellDate: string) => Promise<void>
+  upsertProjectCell: (projectId: string, cellDate: string, content: string, images: string[], isAlert: boolean) => Promise<void>
 }
 
 // ================================================
@@ -217,6 +227,9 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
 
   // Dashboard
   dailyStats: [],
+
+  // Projects
+  projectCells: {},
 
   // ================================================
   // Bootstrap
@@ -328,7 +341,12 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
     const { todos, sortBy } = get()
     const today = new Date().toISOString().slice(0, 10)
     return sortTodos(
-      todos.filter((t) => t.status === 'pending' && t.dueDate && t.dueDate <= today),
+      todos.filter((t) => {
+        if (t.status !== 'pending') return false
+        // 未来开始的待办不显示
+        if (t.startDate && t.startDate > today) return false
+        return t.dueDate && t.dueDate <= today
+      }),
       sortBy
     )
   },
@@ -451,6 +469,42 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
     const stats = await window.todoApi.getDailyStats(startDate, endDate)
     set({ dailyStats: stats })
   },
+
+  // ── Projects ────────────────────────────────────
+  loadProjectMonth: async (projectId, yearMonth) => {
+    const cells = await window.todoApi.getProjectCellsByMonth(projectId, yearMonth)
+    const patch: Record<string, ProjectCell> = {}
+    for (const cell of cells) {
+      patch[`${projectId}_${cell.cellDate}`] = {
+        id: cell.id,
+        content: cell.content,
+        images: cell.images,
+        isAlert: cell.isAlert,
+      }
+    }
+    set((s) => ({ projectCells: { ...s.projectCells, ...patch } }))
+  },
+
+  loadProjectCell: async (projectId, cellDate) => {
+    const key = `${projectId}_${cellDate}`
+    const cell = await window.todoApi.getProjectCell(projectId, cellDate)
+    set((s) => ({
+      projectCells: cell
+        ? { ...s.projectCells, [key]: cell }
+        : s.projectCells,
+    }))
+  },
+
+  upsertProjectCell: async (projectId, cellDate, content, images, isAlert) => {
+    const key = `${projectId}_${cellDate}`
+    await window.todoApi.upsertProjectCell(projectId, cellDate, content, images, isAlert)
+    set((s) => ({
+      projectCells: {
+        ...s.projectCells,
+        [key]: { id: key, content, images, isAlert },
+      },
+    }))
+  },
 }))
 
 // ================================================
@@ -536,6 +590,14 @@ declare global {
       // M4 Stats
       getDailyStats: (startDate: string, endDate: string) => Promise<DailyStats[]>
       updateDailyStats: (patch: Record<string, unknown>) => Promise<void>
+      // Todo Images
+      getTodoImages: (todoId: string) => Promise<{ id: string; data: string; mimeType: string }[]>
+      addTodoImage: (todoId: string, data: string, mimeType: string) => Promise<string>
+      deleteTodoImage: (imageId: string) => Promise<void>
+      // Project Cells
+      getProjectCellsByMonth: (projectId: string, yearMonth: string) => Promise<{ id: string; cellDate: string; content: string; images: string[]; isAlert: boolean }[]>
+      getProjectCell: (projectId: string, cellDate: string) => Promise<ProjectCell | null>
+      upsertProjectCell: (projectId: string, cellDate: string, content: string, images: string[], isAlert: boolean) => Promise<void>
     }
   }
 }

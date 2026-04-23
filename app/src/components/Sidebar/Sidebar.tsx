@@ -8,6 +8,7 @@ import {
   Clock,
   Heart,
   LayoutGrid,
+  LayoutGridIcon,
   ListTodo,
   Repeat,
   Settings,
@@ -86,6 +87,13 @@ export function Sidebar() {
 
         <div className="sidebar-section">
           <div className="sidebar-section-title">效率工具</div>
+          <div
+            className={`sidebar-item ${currentView === 'projects' ? 'active' : ''}`}
+            onClick={() => setCurrentView('projects')}
+          >
+            <LayoutGridIcon className="sidebar-item-icon" size={18} />
+            <span>项目集合</span>
+          </div>
           <div
             className={`sidebar-item ${currentView === 'pomodoro' ? 'active' : ''}`}
             onClick={() => setCurrentView('pomodoro')}

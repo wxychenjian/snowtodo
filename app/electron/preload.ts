@@ -99,4 +99,18 @@ contextBridge.exposeInMainWorld('todoApi', {
   // ── M4 Stats ──────────────────────────────────────────────────────────
   getDailyStats: (startDate: string, endDate: string) => ipcRenderer.invoke('stats:get-daily', { startDate, endDate }),
   updateDailyStats: (patch: Record<string, unknown>) => ipcRenderer.invoke('stats:update-daily', patch),
+
+  // ── Todo Images ─────────────────────────────────────────────────────
+  getTodoImages: (todoId: string) => ipcRenderer.invoke('todo:get-images', todoId),
+  addTodoImage: (todoId: string, data: string, mimeType: string) =>
+    ipcRenderer.invoke('todo:add-image', { todoId, data, mimeType }),
+  deleteTodoImage: (imageId: string) => ipcRenderer.invoke('todo:delete-image', imageId),
+
+  // ── Project Cells ───────────────────────────────────────────────────
+  getProjectCellsByMonth: (projectId: string, yearMonth: string) =>
+    ipcRenderer.invoke('project:get-cells-by-month', { projectId, yearMonth }),
+  getProjectCell: (projectId: string, cellDate: string) =>
+    ipcRenderer.invoke('project:get-cell', { projectId, cellDate }),
+  upsertProjectCell: (projectId: string, cellDate: string, content: string, images: string[], isAlert: boolean) =>
+    ipcRenderer.invoke('project:upsert-cell', { projectId, cellDate, content, images, isAlert }),
 })

@@ -123,11 +123,15 @@ function startReminderLoop() {
   }
 
   const check = () => {
-    // 先生成每日待办
-    database.generateDailyTodos()
-    // 再检查提醒
-    const events = database.getDueReminderEvents()
-    events.forEach(dispatchReminder)
+    try {
+      // 先生成每日待办
+      database.generateDailyTodos()
+      // 再检查提醒
+      const events = database.getDueReminderEvents()
+      events.forEach(dispatchReminder)
+    } catch (err) {
+      console.error('[Main] Reminder loop error:', err)
+    }
   }
 
   check()
@@ -160,8 +164,12 @@ function startHealthReminderLoop() {
   }
 
   const check = () => {
-    const dueReminders = database.getDueHealthReminders(isPomodoroActive)
-    dueReminders.forEach(dispatchHealthReminder)
+    try {
+      const dueReminders = database.getDueHealthReminders(isPomodoroActive)
+      dueReminders.forEach(dispatchHealthReminder)
+    } catch (err) {
+      console.error('[Main] Health reminder loop error:', err)
+    }
   }
 
   check()
@@ -324,6 +332,28 @@ function registerIpc() {
   )
   ipcMain.handle('stats:update-daily', (_event, patch: Partial<Parameters<typeof database.updateDailyStats>[0]>) =>
     database.updateDailyStats(patch as Parameters<typeof database.updateDailyStats>[0])
+  )
+
+  // ── Todo Images IPC ────────────────────────────────────────────────
+  ipcMain.handle('todo:get-images', (_event, todoId: string) =>
+    database.getTodoImages(todoId)
+  )
+  ipcMain.handle('todo:add-image', (_event, payload: { todoId: string; data: string; mimeType: string }) =>
+    database.addTodoImage(payload.todoId, payload.data, payload.mimeType)
+  )
+  ipcMain.handle('todo:delete-image', (_event, imageId: string) =>
+    database.deleteTodoImage(imageId)
+  )
+
+  // ── Project Cells IPC ─────────────────────────────────────────────
+  ipcMain.handle('project:get-cells-by-month', (_event, payload: { projectId: string; yearMonth: string }) =>
+    database.getProjectCellsByMonth(payload.projectId, payload.yearMonth)
+  )
+  ipcMain.handle('project:get-cell', (_event, payload: { projectId: string; cellDate: string }) =>
+    database.getProjectCell(payload.projectId, payload.cellDate)
+  )
+  ipcMain.handle('project:upsert-cell', (_event, payload: { projectId: string; cellDate: string; content: string; images: string[]; isAlert: boolean }) =>
+    (database.upsertProjectCell(payload.projectId, payload.cellDate, payload.content, payload.images, payload.isAlert), undefined)
   )
 }
 

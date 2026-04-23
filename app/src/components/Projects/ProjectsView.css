@@ -1,0 +1,570 @@
+.projects-view {
+  padding: var(--space-4);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.projects-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.projects-view-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.projects-nav-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.projects-nav-btn:hover {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+/* ── Month View ── */
+.projects-month-view {
+  flex: 1;
+}
+
+.projects-month-header {
+  text-align: center;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+}
+
+.projects-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: var(--space-2);
+}
+
+.projects-weekday {
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding: var(--space-1);
+}
+
+.projects-day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.project-day-cell {
+  min-height: 120px;
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: visible;
+}
+
+.project-day-cell.empty {
+  background: transparent;
+  border: none;
+  cursor: default;
+}
+
+.project-day-cell:not(.empty):hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+  z-index: 10;
+}
+
+.project-day-cell.has-content {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+.project-day-cell.today {
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.project-day-cell.alert {
+  background: #fef2f2 !important;
+  border-color: #ef4444 !important;
+}
+
+/* ── 格子顶行：日期数字 + 置红按钮 ── */
+.project-day-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.project-day-num {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+/* 置红按钮：平时隐藏，hover 时显示 */
+.project-day-alert-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.project-day-cell:hover .project-day-alert-btn {
+  opacity: 1;
+}
+
+.project-day-alert-btn:hover {
+  background: #fecaca;
+  color: #ef4444;
+}
+
+.project-day-alert-btn.active {
+  opacity: 1;
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+/* ── 文字预览 ── */
+.project-day-content-preview {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+/* ── 多图片网格缩略图 ── */
+.project-day-thumbs {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-height: 0;
+  border-radius: calc(var(--radius-md) - 2px);
+  overflow: hidden;
+  max-height: 80px;
+}
+
+.project-day-thumbs.count-1 { grid-template-columns: 1fr; }
+.project-day-thumbs.count-2 { grid-template-columns: 1fr 1fr; }
+.project-day-thumbs.count-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.project-day-thumbs.count-3 .project-day-thumb-item:first-child { grid-row: span 2; }
+.project-day-thumbs.count-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+.project-day-thumb-item {
+  position: relative;
+  min-height: 0;
+  cursor: crosshair;
+}
+
+.project-day-thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.project-day-thumb-more {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  padding: 0 3px;
+  line-height: 16px;
+}
+
+/* ── 单图片 Hover Tooltip（针对多图每个图独立放大） ── */
+.thumb-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+  padding: var(--space-3);
+  width: 480px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.project-day-thumb-item:hover .thumb-tooltip {
+  opacity: 1;
+}
+
+.thumb-tooltip-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 100px;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+.thumb-tooltip-img {
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--color-bg);
+  display: block;
+}
+
+/* ── Hover Tooltip 悬浮预览（图片完整显示，不裁切）── */
+.cell-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+  padding: var(--space-3);
+  width: 480px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.project-day-cell:hover .cell-tooltip {
+  opacity: 1;
+}
+
+/* 第一至三行（前21个格子）的悬浮窗改为向下弹出，防止被顶部区域遮挡 */
+.project-day-cell:nth-child(-n+21) .cell-tooltip,
+.project-day-cell:nth-child(-n+21) .thumb-tooltip {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+.cell-tooltip-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  margin: 0 0 var(--space-2) 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 100px;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+/* 单列大图：图片完整显示，保持原始比例 */
+.cell-tooltip-images {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.cell-tooltip-images img {
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--color-bg);
+  display: block;
+}
+
+.cell-tooltip-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* ── Day View ── */
+.projects-day-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.projects-day-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.projects-back-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+}
+
+.projects-back-btn:hover {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+.projects-day-title {
+  flex: 1;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.projects-alert-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+}
+
+.projects-alert-btn.active {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.projects-day-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow: auto;
+}
+
+.projects-content-input {
+  width: 100%;
+  min-height: 120px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+}
+
+.projects-content-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.projects-image-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  padding: var(--space-3);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.projects-image-zone:hover,
+.projects-image-zone.drag-over {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+}
+
+.projects-image-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* 日视图图片网格：合理尺寸 */
+.projects-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.projects-image-item {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg);
+  cursor: zoom-in;
+  /* 固定高度，图片 cover 铺满 */
+  height: 280px;
+}
+
+.projects-image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.projects-image-item:hover img {
+  transform: scale(1.04);
+}
+
+/* hover 遮罩 */
+.projects-image-hover-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.projects-image-item:hover .projects-image-hover-mask {
+  opacity: 1;
+}
+
+.projects-image-zoom-hint {
+  font-size: var(--font-size-xs);
+  color: white;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 3px 8px;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.projects-image-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  z-index: 2;
+}
+
+.projects-image-item:hover .projects-image-delete {
+  opacity: 1;
+}
+
+/* 日视图 Lightbox */
+.projects-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+
+.projects-lightbox img {
+  max-width: 92vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.6);
+  cursor: default;
+}
+
+.projects-lightbox-close {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.projects-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.projects-day-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
