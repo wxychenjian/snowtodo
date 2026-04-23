@@ -676,6 +676,16 @@ a {
   margin-bottom: var(--space-2);
 }
 
+.form-label-hint {
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  opacity: 0.75;
+  margin-left: var(--space-1);
+}
+
+
+
 .form-input {
   width: 100%;
   height: 40px;

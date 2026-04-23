@@ -19,6 +19,7 @@ export type ViewId =
   | 'health'
   | 'timeblock'
   | 'ai'
+  | 'projects'
 
 // ================================================
 // Pomodoro (番茄钟)
@@ -173,6 +174,7 @@ export interface Todo {
   categoryId: string | null
   dueDate: string | null
   dueTime: string | null
+  startDate: string | null   // 开始日期：到了这一天才在「今日待办」中出现
   isPinned: boolean
   repeatRule: RepeatRule
   customDays: number[] // 自定义重复时的星期选择 (0=周日, 1=周一, ...)
@@ -193,6 +195,7 @@ export interface TodoDraft {
   categoryId: string | null
   dueDate: string | null
   dueTime: string | null
+  startDate?: string | null  // 开始日期
   isPinned: boolean
   repeatRule: RepeatRule
   customDays?: number[] // 自定义重复时的星期选择 (0=周日, 1=周一, ...)
@@ -252,4 +255,23 @@ export interface RecurringTodoDraft {
   reminderType: ReminderType
   reminderTime: string | null
   isActive: boolean
+}
+
+// ================================================
+// Todo Images
+// ================================================
+export interface TodoImage {
+  id: string
+  data: string    // base64
+  mimeType: string
+}
+
+// ================================================
+// Project Cells (项目格子)
+// ================================================
+export interface ProjectCell {
+  id: string
+  content: string
+  images: string[]  // base64 array
+  isAlert: boolean
 }

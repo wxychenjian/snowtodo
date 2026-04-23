@@ -8,6 +8,7 @@ import DashboardView from '../Dashboard/DashboardView'
 import HealthView from '../Health/HealthView'
 import AIView from '../AI/AIView'
 import TimeBlockView from '../TimeBlock/TimeBlockView'
+import { ProjectsView } from '../Projects/ProjectsView'
 import './Content.css'
 
 export function Content() {
@@ -47,6 +48,9 @@ export function Content() {
   }
   if (currentView === 'timeblock') {
     return <main className="content no-padding"><TimeBlockView /></main>
+  }
+  if (currentView === 'projects') {
+    return <main className="content no-padding"><ProjectsView /></main>
   }
 
   // 所有 todo 视图（today / all / upcoming / completed / categories / tags）
